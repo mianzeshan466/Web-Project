@@ -12,16 +12,21 @@ const saveBtn = document.getElementById("saveBtn");
 const cancelBtn = document.getElementById("cancelBtn");
 const formTitle = document.getElementById("formTitle");
 
+// Fetch Data for Admin Dashboard View
 async function fetchAdminData() {
     try {
         const response = await fetch(API_URL);
-        if(!response.ok) throw new Error();
+        if (!response.ok) throw new Error("Could not retrieve admin data");
         const data = await response.json();
+        
         calculateStats(data);
         renderAdminTable(data);
-    } catch (err) { console.error("Error loading data", err); }
+    } catch (err) {
+        console.error(err);
+    }
 }
 
+// Reactive Dashboard Calculations
 function calculateStats(data) {
     document.getElementById("statTotal").innerText = data.length;
     
@@ -32,35 +37,58 @@ function calculateStats(data) {
     document.getElementById("statVillas").innerText = villas;
 }
 
+// Beautiful Tabular Dashboard Display
 function renderAdminTable(data) {
     tableBody.innerHTML = "";
+    
+    if (data.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-muted">No items available in the server catalog.</td></tr>`;
+        return;
+    }
+
     data.forEach(item => {
         const tr = document.createElement("tr");
+        tr.style.transition = "background-color 0.2s";
         tr.innerHTML = `
-            <td><strong>${item.title}</strong></td>
-            <td>${item.type}</td>
-            <td>$${Number(item.price).toLocaleString()}</td>
-            <td>${item.location}</td>
             <td>
-                <button class="btn btn-sm btn-warning me-2" onclick="editItem('${item.id}')">Edit</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
+                <div class="d-flex align-items-center">
+                    <img src="${item.image}" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
+                    <div>
+                        <span class="fw-bold d-block text-dark">${item.title}</span>
+                        <span class="text-muted small">ID: #${item.id}</span>
+                    </div>
+                </div>
+            </td>
+            <td><span class="badge ${item.type === 'Villa' ? 'bg-danger' : 'bg-primary'}">${item.type}</span></td>
+            <td><span class="fw-bold text-dark">$${Number(item.price).toLocaleString()}</span></td>
+            <td><i class="bi bi-geo-alt text-muted"></i> ${item.location}</td>
+            <td>
+                <button class="btn btn-sm btn-warning text-white me-1 px-3 shadow-sm" onclick="editItem('${item.id}')">Edit</button>
+                <button class="btn btn-sm btn-danger px-3 shadow-sm" onclick="deleteItem('${item.id}')">Delete</button>
             </td>
         `;
         tableBody.appendChild(tr);
     });
 }
 
-// Inline Custom Form Validation & POST/PUT
+// Form Interception & CRUD Submission Handler
 propertyForm.addEventListener("submit", async (e) => {
-    e.preventDefault(); // Prevents page reload
+    e.preventDefault();
     
-    // Inline Validation rule check
+    // Custom Form Validation Rule Check
     if (titleInput.value.trim().length < 5) {
         document.getElementById("titleErr").classList.remove("d-none");
+        titleInput.classList.add("is-invalid");
         return;
     } else {
         document.getElementById("titleErr").classList.add("d-none");
+        titleInput.classList.remove("is-invalid");
     }
+
+    // Set Button Loading State Reactively
+    const originalBtnText = saveBtn.innerText;
+    saveBtn.innerText = "Processing Transaction...";
+    saveBtn.disabled = true;
 
     const payload = {
         title: titleInput.value,
@@ -73,48 +101,71 @@ propertyForm.addEventListener("submit", async (e) => {
     const id = propertyIdInput.value;
     try {
         if (id) {
-            // Update mode: PUT
-            await fetch(`${API_URL}/${id}`, {
+            // Update Flow (PUT)
+            const res = await fetch(`${API_URL}/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
+            if(!res.ok) throw new Error();
         } else {
-            // Creation mode: POST
-            await fetch(API_URL, {
+            // Creation Flow (POST)
+            const res = await fetch(API_URL, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
+            if(!res.ok) throw new Error();
         }
+        
         propertyForm.reset();
         resetFormState();
-        fetchAdminData();
-    } catch (err) { alert("Action failed."); }
+        await fetchAdminData();
+    } catch (err) {
+        alert("The server operational execution faulted.");
+    } finally {
+        saveBtn.innerText = originalBtnText;
+        saveBtn.disabled = false;
+    }
 });
 
-// Load item for Editing
+// Reactively Populate Fields For Editing
 window.editItem = async (id) => {
-    const response = await fetch(`${API_URL}/${id}`);
-    const item = await response.json();
-    
-    propertyIdInput.value = item.id;
-    titleInput.value = item.title;
-    typeInput.value = item.type;
-    priceInput.value = item.price;
-    locationInput.value = item.location;
-    imageInput.value = item.image;
-    
-    formTitle.innerText = "Modify Existing Listing";
-    saveBtn.innerText = "Update Changes";
-    cancelBtn.classList.remove("d-none");
+    try {
+        const response = await fetch(`${API_URL}/${id}`);
+        if (!response.ok) throw new Error();
+        const item = await response.json();
+        
+        propertyIdInput.value = item.id;
+        titleInput.value = item.title;
+        typeInput.value = item.type;
+        priceInput.value = item.price;
+        locationInput.value = item.location;
+        imageInput.value = item.image;
+        
+        // Transform the form visual theme dynamically to notify user they are in edit mode
+        formTitle.innerHTML = `<span class="text-warning">Modify Asset Data (ID: #${item.id})</span>`;
+        saveBtn.innerText = "Commit Changes";
+        saveBtn.className = "btn btn-warning text-white mt-3";
+        cancelBtn.classList.remove("d-none");
+        
+        // Scroll smoothly to form container
+        propertyForm.scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+        alert("Could not load item details.");
+    }
 };
 
-// Delete Action
+// Complete Asset Removal (DELETE)
 window.deleteItem = async (id) => {
-    if (confirm("Are you certain you want to remove this property listing?")) { // Rubric confirmation check
-        await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-        fetchAdminData();
+    if (confirm("Are you absolutely sure you want to drop this asset listing permanently from Matrix Estate?")) {
+        try {
+            const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+            if(!response.ok) throw new Error();
+            await fetchAdminData();
+        } catch (err) {
+            alert("Removal action dropped by server engine.");
+        }
     }
 };
 
@@ -125,8 +176,9 @@ cancelBtn.addEventListener("click", () => {
 
 function resetFormState() {
     propertyIdInput.value = "";
-    formTitle.innerText = "Add New Property Listing";
+    formTitle.innerText = "Add New Property to Matrix Estate";
     saveBtn.innerText = "Save Listing";
+    saveBtn.className = "btn btn-primary mt-3";
     cancelBtn.classList.add("d-none");
 }
 
