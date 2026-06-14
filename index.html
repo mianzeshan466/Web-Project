@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Matrix Estate | Find Your Home</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Matrix Estate</a>
+            <div class="navbar-nav">
+                <a class="nav-link active" href="index.html">Home</a>
+                <a class="nav-link text-warning" href="admin.html">Admin Portal</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container my-5">
+        <section class="mb-4 bg-white p-3 rounded shadow-sm">
+            <h5>Filter Listings</h5>
+            <select id="typeFilter" class="form-select w-25">
+                <option value="">All Types</option>
+                <option value="Apartment">Apartment</option>
+                <option value="Villa">Villa</option>
+            </select>
+        </section>
+
+        <section>
+            <div id="loadingState" class="text-center d-none"><h3>Loading properties...</h3></div>
+            <div id="errorState" class="alert alert-danger d-none">Failed to connect to backend server.</div>
+            <div id="propertyGrid" class="row g-4"></div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
